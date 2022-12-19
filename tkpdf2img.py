@@ -12,7 +12,7 @@ pdf_path = filepath
 from pdf2image import convert_from_path #installing poppler package necessary
 T2B_img = convert_from_path(pdf_path)
 import os
-save_folder = r"C:\Users\hanst\PycharmProjects\T2Bproject\pdf2array"
+save_folder = r"C:\Users\hanst\PycharmProjects\T2B\pdf2array"
 for page in T2B_img:
     pdf_name = os.path.basename(filepath)
     img_name = os.path.splitext(pdf_name)[0] + ".jpeg"

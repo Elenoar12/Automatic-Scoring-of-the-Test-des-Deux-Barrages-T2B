@@ -1,6 +1,8 @@
-import tkinter
+import tkinter as tk
 from tkinter import filedialog
-root = tkinter.Tk()
+from PIL import ImageTk, Image
+
+root = tk.Tk()
 root.withdraw() #use to hide tkinter window
 def search_for_file_path():
     filepath = filedialog.askopenfilename(parent = root, title = 'Please select a file', filetypes = (("PDF files","*.pdf"),("all files","*.*")))
@@ -18,6 +20,4 @@ for page in T2B_img:
     img_name = os.path.splitext(pdf_name)[0] + ".jpeg"
     img_path = page.save(os.path.join(save_folder, img_name))
 
-jpeg_path = os.chdir(save_folder)
-from PIL import ImageTk, Image
-from tkinter import Frame, Tk, Label
+#os.chdir(save_folder)

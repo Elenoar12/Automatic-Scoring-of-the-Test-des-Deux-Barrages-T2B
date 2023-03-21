@@ -41,33 +41,43 @@ clmn_peaks = clmn_peaks.flatten(order='C')
 
 #adapt boundaries:
 
-def row_adaptor(x):
-  for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
-    distance = np.diff(x)
-    median = int(np.median(np.diff(x)))
+def row_adaptor(row_peaks, exp_range = (300, 3000)):
+  for std in range(3, 6):               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
+    distance = np.diff(row_peaks)
+    median = int(np.median(np.diff(row_peaks)))
     up_bound = median + std
     low_bound = median - std
-    inlier = np.asarray(np.where((distance > low_bound) & (distance < up_bound))).flatten(order = 'C')
-    index = [inlier[0], (inlier[-1] + 2)]                                                                               #np.diff output one element less than original array, and + 2 to accomodate this difference
-    frame = x[index[0]:index[-1]]
+    row_peaks = row_peaks[np.where(np.logical_and(row_peaks > exp_range[0],
+                                                    row_peaks < exp_range[1]))] #filters clmn_peak for expected range (hardcoded!!!)
+    too_close = np.array(np.where(np.logical_or(np.diff(row_peaks) < low_bound,
+                                      np.diff(row_peaks) > up_bound))).flatten()
+    dis_too_close = np.diff(too_close).flatten()
+    indx_too_close = (np.array(np.where(dis_too_close == 1)).
+                      flatten() + 1).astype(int)                                #+1 returns indices of indices of peaks that are too close to each other
+    indx_too_close = too_close[indx_too_close]
+    frame = np.delete(row_peaks, indx_too_close)
     split = np.insert(frame, 0, (frame[0] - median))
     split = np.append(split, (frame[-1] + median))
-    #print(len(split))
     while len(split) == 41:
       return split
 
-def clmn_adaptor(x):
-  for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
-    distance = np.diff(x)
-    median = int(np.median(np.diff(x)))
+def clmn_adaptor(clmn_peaks, exp_range = (300, 2000)):
+  for std in range(3, 6):               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
+    distance = np.diff(clmn_peaks)
+    median = int(np.median(np.diff(clmn_peaks)))
     up_bound = median + std
     low_bound = median - std
-    inlier = np.asarray(np.where((distance > low_bound) & (distance < up_bound))).flatten(order = 'C')
-    index = [inlier[0], (inlier[-1] + 2)]                                                                               #np.diff output one element less than original array, and + 2 to accomodate this difference
-    frame = x[index[0]:index[-1]]
+    clmn_peaks = clmn_peaks[np.where(np.logical_and(clmn_peaks > exp_range[0],
+                                                    clmn_peaks < exp_range[1]))] #filters clmn_peak for expected range (hardcoded!!!)
+    too_close = np.array(np.where(np.logical_or(np.diff(clmn_peaks) < low_bound,
+                                      np.diff(clmn_peaks) > up_bound))).flatten()
+    dis_too_close = np.diff(too_close).flatten()
+    indx_too_close = (np.array(np.where(dis_too_close == 1)).
+                      flatten() + 1).astype(int)                                #+1 returns indices of indices of peaks that are too close to each other
+    indx_too_close = too_close[indx_too_close]
+    frame = np.delete(clmn_peaks, indx_too_close)
     split = np.insert(frame, 0, (frame[0] - median))
     split = np.append(split, (frame[-1] + median))
-    #print(len(split))
     while len(split) == 26:
       return split
 
@@ -224,14 +234,12 @@ for p in range(len(sym_list)):
 #check within symbol border for mark:
 
 mean_mark = np.array(mean_mark_list)
-mark_in = np.logical_and(mean_mark > 200, mean_mark < 250).astype(int)                                                  #np.logical_and to combine two conditions without causing ValueError
+mark_in = (mean_mark < 250).astype(int)                                                                                 #np.logical_and to combine two conditions without causing ValueError
 
 #use areas outside the symbol to check for symbols without a definite mark:
 
 mean_out_areas = np.array(mean_out_areas)
-indx_mark_out = np.array(np.where(np.logical_and(np.array(mean_mark_list) > 200,                                        #index for symbols that weren't recognized as marked
-                                                 np.array(mean_mark_list) < 250).astype(int) == 0)).flatten()
-
+indx_mark_out = np.array(np.where(mark_in == 0)).flatten()                                                              #index for symbols that weren't recognized as marked
 mark_out = np.zeros(1000, int)
 
 for k in indx_mark_out:
@@ -382,11 +390,11 @@ print(ACC)
 
 FN_loc = np.logical_and(mark == 0, template == 1)
 FN_indx = np.transpose(np.nonzero(FN_loc == True))
-print(FN_indx)                                                                                                          # +1 on indx values gives you the on sheet index
+#print(FN_indx)                                                                                                         # +1 on indx values gives you the on sheet index
 
 FP_loc = np.logical_and(mark == 1, template == 0)
 FP_indx = np.transpose(np.nonzero(FP_loc == True))
-print(FP_indx)                                                                                                          # +1 on indx values gives you the on sheet index
+#print(FP_indx)                                                                                                         # +1 on indx values gives you the on sheet index
 
 #last marked symbol as stop for visualization:
 
@@ -415,14 +423,14 @@ if indx_mark_sym[-1] != 997:
   plt.axis('off')
   plt.imshow(img, cmap='gray')
   for w in range(len(FN_indx[:stop_indx])):
-    plt.hlines((adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)]), adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)], colors = ("orange"), linewidth = 2)
-    plt.vlines((adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)]), adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)], colors = ("orange"), linewidth = 2)
+    plt.hlines((adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)]), adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)], colors = ("orange"), linewidth = 1)
+    plt.vlines((adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)]), adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)], colors = ("orange"), linewidth = 1)
   for v in range(len(FP_indx)):
-    plt.hlines((adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)]), adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)], colors = ("r"), linewidth = 2)
-    plt.vlines((adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)]), adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)], colors = ("r"), linewidth = 2)
+    plt.hlines((adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)]), adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)], colors = ("r"), linewidth = 1)
+    plt.vlines((adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)]), adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)], colors = ("r"), linewidth = 1)
   for u in range(stop_indx, rest_indx):
-    plt.hlines((adapt_row[FN_indx[u, 0]], adapt_row[(FN_indx[u, 0] + 1)]), adapt_clmn[FN_indx[u, 1]], adapt_clmn[(FN_indx[u, 1] + 1)], colors = ("green"), linewidth = 2)
-    plt.vlines((adapt_clmn[FN_indx[u, 1]], adapt_clmn[(FN_indx[u, 1] + 1)]), adapt_row[FN_indx[u, 0]], adapt_row[(FN_indx[u, 0] + 1)], colors = ("green"), linewidth = 2)
+    plt.hlines((adapt_row[FN_indx[u, 0]], adapt_row[(FN_indx[u, 0] + 1)]), adapt_clmn[FN_indx[u, 1]], adapt_clmn[(FN_indx[u, 1] + 1)], colors = ("green"), linewidth = 1)
+    plt.vlines((adapt_clmn[FN_indx[u, 1]], adapt_clmn[(FN_indx[u, 1] + 1)]), adapt_row[FN_indx[u, 0]], adapt_row[(FN_indx[u, 0] + 1)], colors = ("green"), linewidth = 1)
 
 else:
 #visualization:
@@ -431,8 +439,10 @@ else:
   plt.axis('off')
   plt.imshow(img, cmap='gray')
   for w in range(len(FN_indx)):
-    plt.hlines((adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)]), adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)], colors = ("orange"), linewidth = 2)
-    plt.vlines((adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)]), adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)], colors = ("orange"), linewidth = 2)
+    plt.hlines((adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)]), adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)], colors = ("orange"), linewidth = 1)
+    plt.vlines((adapt_clmn[FN_indx[w, 1]], adapt_clmn[(FN_indx[w, 1] + 1)]), adapt_row[FN_indx[w, 0]], adapt_row[(FN_indx[w, 0] + 1)], colors = ("orange"), linewidth = 1)
   for v in range(len(FP_indx)):
-    plt.hlines((adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)]), adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)], colors = ("r"), linewidth = 2)
-    plt.vlines((adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)]), adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)], colors = ("r"), linewidth = 2)
+    plt.hlines((adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)]), adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)], colors = ("r"), linewidth = 1)
+    plt.vlines((adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)]), adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)], colors = ("r"), linewidth = 1)
+plt.show()
+

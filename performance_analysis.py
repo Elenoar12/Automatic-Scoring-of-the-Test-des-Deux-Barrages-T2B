@@ -49,18 +49,18 @@ def T2B_splitter(img, dim, frac_row = 0.027, frac_clmn = 0.04):
   return row_peaks, clmn_peaks
 
 def row_adaptor(row_peaks, exp_range = (300, 3000)):
-  for std in range(3, 6):               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
+  for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
     distance = np.diff(row_peaks)
     median = int(np.median(np.diff(row_peaks)))
     up_bound = median + std
     low_bound = median - std
-    row_peaks = row_peaks[np.where(np.logical_and(row_peaks > exp_range[0],
-                                                    row_peaks < exp_range[1]))] #filters clmn_peak for expected range (hardcoded!!!)
+    row_peaks = row_peaks[np.where(np.logical_and(row_peaks >= exp_range[0],
+                                                    row_peaks <= exp_range[1]))]                                         #filters clmn_peak for expected range
     too_close = np.array(np.where(np.logical_or(np.diff(row_peaks) < low_bound,
                                       np.diff(row_peaks) > up_bound))).flatten()
     dis_too_close = np.diff(too_close).flatten()
     indx_too_close = (np.array(np.where(dis_too_close == 1)).
-                      flatten() + 1).astype(int)                                #+1 returns indices of indices of peaks that are too close to each other
+                      flatten() + 1).astype(int)                                                                        #+1 returns indices of indices of peaks that are too close to each other
     indx_too_close = too_close[indx_too_close]
     frame = np.delete(row_peaks, indx_too_close)
     split = np.insert(frame, 0, (frame[0] - median))
@@ -69,18 +69,18 @@ def row_adaptor(row_peaks, exp_range = (300, 3000)):
       return split
 
 def clmn_adaptor(clmn_peaks, exp_range = (300, 2000)):
-  for std in range(3, 6):               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
+  for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
     distance = np.diff(clmn_peaks)
     median = int(np.median(np.diff(clmn_peaks)))
     up_bound = median + std
     low_bound = median - std
-    clmn_peaks = clmn_peaks[np.where(np.logical_and(clmn_peaks > exp_range[0],
-                                                    clmn_peaks < exp_range[1]))] #filters clmn_peak for expected range (hardcoded!!!)
+    clmn_peaks = clmn_peaks[np.where(np.logical_and(clmn_peaks >= exp_range[0],
+                                                    clmn_peaks <= exp_range[1]))]                                        #filters clmn_peak for expected range
     too_close = np.array(np.where(np.logical_or(np.diff(clmn_peaks) < low_bound,
                                       np.diff(clmn_peaks) > up_bound))).flatten()
     dis_too_close = np.diff(too_close).flatten()
     indx_too_close = (np.array(np.where(dis_too_close == 1)).
-                      flatten() + 1).astype(int)                                #+1 returns indices of indices of peaks that are too close to each other
+                      flatten() + 1).astype(int)                                                                        #+1 returns indices of indices of peaks that are too close to each other
     indx_too_close = too_close[indx_too_close]
     frame = np.delete(clmn_peaks, indx_too_close)
     split = np.insert(frame, 0, (frame[0] - median))
@@ -406,8 +406,8 @@ def perf_anal_script(excel_path, method):
   jpeg_path = os.path.splitext(excel_path)[0] + ".jpeg"
   #last symbol from excel sheet:
   stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):  # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):  # in case s.o. is faster than 9min
+  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
+      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
           stop = (stop[10][1], stop[10][2])
       elif np.isnan(stop[12][1]):
           stop = (stop[11][1], stop[11][2])
@@ -463,8 +463,8 @@ def perf_anal_script(excel_path, method):
 
 def perf_anal_clin(excel_path):
   stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):  # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):  # in case s.o. is faster than 9min
+  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
+      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
           stop = (stop[10][1], stop[10][2])
       elif np.isnan(stop[12][1]):
           stop = (stop[11][1], stop[11][2])

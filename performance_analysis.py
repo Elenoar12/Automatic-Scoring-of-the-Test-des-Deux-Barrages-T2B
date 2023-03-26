@@ -566,7 +566,7 @@ avg_perf = pd.DataFrame(script_performance[['ACC', 'SEN', 'SPE']].mean(axis = 0)
 avg_perf.index = ['average performance']
 script_perf = pd.concat([script_performance, avg_perf], axis = 0).fillna(0)
 script_perf = script_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-script_perf.iloc[2,[0, 1, 2, 3]] = ''
+script_perf.iloc[-1,[0, 1, 2, 3]] = ''
 makro_perf = pd.DataFrame({
     'TP': [script_performance.sum()[0].astype(int)],
     'TN': [script_performance.sum()[1].astype(int)],
@@ -579,30 +579,28 @@ makro_perf.index = ['makro performance']
 script_perf = pd.concat([script_perf, makro_perf], axis=0)
 script_perf.to_excel('script performance.xlsx')
 
-#excel_paths = search_for_xlsx_paths()
+excel_paths = search_for_xlsx_paths()
 
-#clin_performance = []
-#for indx in range(len(excel_paths)):
- #   excel_path = excel_paths[indx]
- #   pa = perf_anal_clin(excel_path)
- #   clin_performance.append(pa)
+clin_performance = []
+for indx in range(len(excel_paths)):
+   excel_path = excel_paths[indx]
+   pa = perf_anal_clin(excel_path)
+   clin_performance.append(pa)
 
-#clin_performance = pd.concat(clin_performance)
-#clin_performance = pd.concat(clin_performance)
-#avg_perf = pd.DataFrame(clin_performance[['ACC', 'SEN', 'SPE']].mean(axis = 0)).T
-#avg_perf.index = ['average performance']
-#clin_perf = pd.concat([clin_performance, avg_perf], axis = 0).fillna(0)
-#clin_perf = clin_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-#clin_perf.iloc[2,[0, 1, 2, 3]] = ''
-#makro_perf = pd.DataFrame({
-#    'TP': [clin_performance.sum()[0].astype(int)],
-#    'TN': [clin_performance.sum()[1].astype(int)],
-#    'FP': [clin_performance.sum()[2].astype(int)],
-#    'FN': [clin_performance.sum()[3].astype(int)],
-#    'ACC': [(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int))/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int)+clin_performance.sum()[3].astype(int))],
-#    'SEN': [clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))],
-#    'SPE': [clin_performance.sum()[1].astype(int)/(clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int))]})
-#makro_perf.index = ['makro performance']
-#clin_perf = pd.concat([clin_perf, makro_perf], axis=0)
-#clin_perf.to_excel('clinical performance.xlsx')
-#clin_perf.to_excel('clinical performance.xlsx')
+clin_performance = pd.concat(clin_performance)
+avg_perf = pd.DataFrame(clin_performance[['ACC', 'SEN', 'SPE']].mean(axis = 0)).T
+avg_perf.index = ['average performance']
+clin_perf = pd.concat([clin_performance, avg_perf], axis = 0).fillna(0)
+clin_perf = clin_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
+clin_perf.iloc[-1,[0, 1, 2, 3]] = ''
+makro_perf = pd.DataFrame({
+    'TP': [clin_performance.sum()[0].astype(int)],
+    'TN': [clin_performance.sum()[1].astype(int)],
+    'FP': [clin_performance.sum()[2].astype(int)],
+    'FN': [clin_performance.sum()[3].astype(int)],
+    'ACC': [(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int))/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int)+clin_performance.sum()[3].astype(int))],
+    'SEN': [clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))],
+    'SPE': [clin_performance.sum()[1].astype(int)/(clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int))]})
+makro_perf.index = ['makro performance']
+clin_perf = pd.concat([clin_perf, makro_perf], axis=0)
+clin_perf.to_excel('clinical performance.xlsx')

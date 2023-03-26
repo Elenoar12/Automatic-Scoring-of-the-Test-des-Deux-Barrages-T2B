@@ -8,6 +8,7 @@ from scipy.signal import argrelmax, argrelmin
 from scipy.sparse import csr_matrix
 import pandas as pd
 import os
+from scipy import ndimage
 
 root = tk.Tk()
 root.withdraw()                                                                                                         #use to hide tkinter window
@@ -48,7 +49,7 @@ def T2B_splitter(img, dim, frac_row = 0.027, frac_clmn = 0.04):
   clmn_peaks = clmn_peaks.flatten(order='C')
   return row_peaks, clmn_peaks
 
-def row_adaptor(row_peaks, exp_range = (300, 3000)):
+def row_adaptor(row_peaks, exp_range = (300, 3050)):
   for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
     distance = np.diff(row_peaks)
     median = int(np.median(np.diff(row_peaks)))
@@ -393,7 +394,25 @@ def T2B_evaluator(jpeg_path, method, stop):
   row_peaks = T2B_splitter(img, dim)[0]
   clmn_peaks = T2B_splitter(img, dim)[1]
   adapt_row = row_adaptor(row_peaks)
+  try:
+      any(adapt_row == None)
+  except:
+      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
+      dim = img.shape
+      row_peaks = T2B_splitter(img, dim)[0]
+      clmn_peaks = T2B_splitter(img, dim)[1]
+      adapt_row = row_adaptor(row_peaks)
+      adapt_clmn = clmn_adaptor(clmn_peaks)
   adapt_clmn = clmn_adaptor(clmn_peaks)
+  try:
+      any(adapt_clmn == None)
+  except:
+      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
+      dim = img.shape
+      row_peaks = T2B_splitter(img, dim)[0]
+      clmn_peaks = T2B_splitter(img, dim)[1]
+      adapt_row = row_adaptor(row_peaks)
+      adapt_clmn = clmn_adaptor(clmn_peaks)
   sym_list = sym_list_loop(img, adapt_row, adapt_clmn)
   mark = method(sym_list)
   template = adapt_template(stop)
@@ -419,7 +438,25 @@ def perf_anal_script(excel_path, method):
   row_peaks = T2B_splitter(img, dim)[0]
   clmn_peaks = T2B_splitter(img, dim)[1]
   adapt_row = row_adaptor(row_peaks)
+  try:
+      any(adapt_row == None)
+  except:
+      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
+      dim = img.shape
+      row_peaks = T2B_splitter(img, dim)[0]
+      clmn_peaks = T2B_splitter(img, dim)[1]
+      adapt_row = row_adaptor(row_peaks)
+      adapt_clmn = clmn_adaptor(clmn_peaks)
   adapt_clmn = clmn_adaptor(clmn_peaks)
+  try:
+      any(adapt_clmn == None)
+  except:
+      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
+      dim = img.shape
+      row_peaks = T2B_splitter(img, dim)[0]
+      clmn_peaks = T2B_splitter(img, dim)[1]
+      adapt_row = row_adaptor(row_peaks)
+      adapt_clmn = clmn_adaptor(clmn_peaks)
   sym_list = sym_list_loop(img, adapt_row, adapt_clmn)
   mark = method(sym_list)[0]
   criteria = method(sym_list)[1]
@@ -525,7 +562,22 @@ for indx in range(len(excel_paths)):
   script_performance.append(pa)
 
 script_performance = pd.concat(script_performance)
-script_performance.to_excel('script performance.xlsx')
+avg_perf = pd.DataFrame(script_performance[['ACC', 'SEN', 'SPE']].mean(axis = 0)).T
+avg_perf.index = ['average performance']
+script_perf = pd.concat([script_performance, avg_perf], axis = 0).fillna(0)
+script_perf = script_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
+script_perf.iloc[2,[0, 1, 2, 3]] = ''
+makro_perf = pd.DataFrame({
+    'TP': [script_performance.sum()[0].astype(int)],
+    'TN': [script_performance.sum()[1].astype(int)],
+    'FP': [script_performance.sum()[2].astype(int)],
+    'FN': [script_performance.sum()[3].astype(int)],
+    'ACC': [(script_performance.sum()[0].astype(int)+script_performance.sum()[1].astype(int))/(script_performance.sum()[0].astype(int)+script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int)+script_performance.sum()[3].astype(int))],
+    'SEN': [script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))],
+    'SPE': [script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))]})
+makro_perf.index = ['makro performance']
+script_perf = pd.concat([script_perf, makro_perf], axis=0)
+script_perf.to_excel('script performance.xlsx')
 
 #excel_paths = search_for_xlsx_paths()
 
@@ -536,4 +588,21 @@ script_performance.to_excel('script performance.xlsx')
  #   clin_performance.append(pa)
 
 #clin_performance = pd.concat(clin_performance)
-#clin_performance.to_excel('clinical performance.xlsx')
+#clin_performance = pd.concat(clin_performance)
+#avg_perf = pd.DataFrame(clin_performance[['ACC', 'SEN', 'SPE']].mean(axis = 0)).T
+#avg_perf.index = ['average performance']
+#clin_perf = pd.concat([clin_performance, avg_perf], axis = 0).fillna(0)
+#clin_perf = clin_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
+#clin_perf.iloc[2,[0, 1, 2, 3]] = ''
+#makro_perf = pd.DataFrame({
+#    'TP': [clin_performance.sum()[0].astype(int)],
+#    'TN': [clin_performance.sum()[1].astype(int)],
+#    'FP': [clin_performance.sum()[2].astype(int)],
+#    'FN': [clin_performance.sum()[3].astype(int)],
+#    'ACC': [(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int))/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int)+clin_performance.sum()[3].astype(int))],
+#    'SEN': [clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))],
+#    'SPE': [clin_performance.sum()[1].astype(int)/(clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int))]})
+#makro_perf.index = ['makro performance']
+#clin_perf = pd.concat([clin_perf, makro_perf], axis=0)
+#clin_perf.to_excel('clinical performance.xlsx')
+#clin_perf.to_excel('clinical performance.xlsx')

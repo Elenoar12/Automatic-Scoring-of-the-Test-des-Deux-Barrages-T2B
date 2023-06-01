@@ -254,6 +254,13 @@ mark = np.add(mark_out, mark_in)
 mark[0:25] = 0
 indx_mark_sym = np.array(np.where(mark == 1)).flatten()                                                                 #needed later for stop_indx
 
+# to determine recognition criteria (inside/outside):
+
+#criteria = np.zeros(1000, int)
+#criteria[indx_mark_in] = 0
+#criteria[indx_mark_out] = 1
+#criteria = criteria.reshape(40, 25)
+
 #check for outliers/corrections:
                                                                                                                         #uncomment for mean/std correction control
 # mark_sym = np.array(mean_sym_list)[indx_mark_sym]

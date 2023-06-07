@@ -1155,6 +1155,13 @@ pat_perf = pd.concat([pat_perf, macro_perf], axis=0)
 pat_perf.to_excel('Patient performance.xlsx')
 
 ### script performance:
+# To run the performance analysis of the models use the files in folder 'Performance analysis - Script,
+# consisting of .xlsm files (ground truth of patient's) and test sheet images (.jpeg). Both types of files need to be in
+# the same folder. The tkinter window will prompt you to select the ground truth files and the script will automatically
+# use the corresponding images to run the classification models on, as long as they are in the same folder and have the
+# same name (T2B_date_...). At the end of the code a new Excel file will be generated with the calculated performance
+# analysis of the models.
+
 ## Model with inside OR outside criteria:
 
 script_performance = []
@@ -1237,6 +1244,12 @@ Model_strict_threshold_perf = pd.concat([script_perf, macro_perf], axis=0)
 Model_strict_threshold_perf.to_excel('Performance analysis Model with strict threshold.xlsx')
 
 ## clinical performance:
+# To run the performance analysis of the clinicians use the files in folder 'Performance Analysis - Clinicians'.
+# Both .xlsx (clinician's evaluation) and .xlsm (ground truth of patient's) Excel files need to be in the same folder.
+# The code is designed to access both types of Excel files by name.
+# The tkinter window will prompt you to select the .xlsx files and the script will automatically select
+# the corresponding .xlsm files as long as they are in the same folder and have the same name (T2B_date_...).
+# At the end of the code a new Excel file will be generated with the calculated performance analysis.
 
 clin_paths = search_for_xlsx_paths()                                                                                    #for clinical performance
 
@@ -1376,10 +1389,12 @@ def T2B_evaluator(excel_path, model):
   #vis = visual(img, mark, template, adapt_row, adapt_clmn)[0]
   return eval
 
+#st = start time
 st = time.time()
 for indx in range(len(excel_paths)):
     excel_path = excel_paths[indx]
     T2B_evaluator(excel_path, model_strict_thresh)
+#et = end time
 et = time.time()
 # get the execution time
 elapsed_time = et - st

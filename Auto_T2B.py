@@ -11,24 +11,29 @@ import os
 from scipy import ndimage
 from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 
+# opens tkinter window for file selection:
 root = tk.Tk()
 root.withdraw()                                                                                                         #use to hide tkinter window
 
+# function to search for test sheet image:
 def search_for_jpeg_path():
     jpeg_path = filedialog.askopenfilename(parent = root, title = 'Please select test sheet image', filetypes = (("JPEG files","*.jpeg"),("all files","*.*")))
     return jpeg_path
 
+# function to search for ground truth Excel files:
 def search_for_xlsm_paths():
     excel_paths = filedialog.askopenfilename(parent = root, title = 'Please select ground truth file for stop indicator', filetypes = (("Excel files","*.xlsm"),("all files","*.*")))
     return excel_paths
 
-
+# function to import test sheet image, convert to grayscale and return dimensions of the test sheet:
 def T2B_import(jpeg_path):
   img = cv.imread(jpeg_path, cv.IMREAD_GRAYSCALE)                                                                       #if test sheets to be rotated --> img = cv.rotate(img, cv.ROTATE_90_CLOCKWISE) or COUNTERCLOCKWISE
   dim = img.shape
   return img, dim
 
+# function to find row and column maxima of the test sheet:
 def T2B_splitter(img, dim, frac_row = 0.027, frac_clmn = 0.04):
+  #calculate mean of each pixel row/column:
   mean_row = np.mean(img, axis=1)                                                                                       #axis = 1 means working along the row
   mean_clmn = np.mean(img, axis=0)                                                                                      #axis = 0 means along the column
   x = np.array(range(dim[0]))
@@ -49,23 +54,27 @@ def T2B_splitter(img, dim, frac_row = 0.027, frac_clmn = 0.04):
   clmn_peaks = clmn_peaks.flatten(order='C')
   return row_peaks, clmn_peaks
 
+# function to adjust number of maxima and length between maxima:
 def row_adaptor(row_peaks, exp_range = (300, 3050)):
+  #find maxima that are too close too eachother:
   for std in range(3, 6):                                                                                               #std = 3, 4, 5 work the best, is there alternative to np.floor(np.std(np.diff(x)))??
     distance = np.diff(row_peaks)
     median = int(np.median(np.diff(row_peaks)))
     up_bound = median + std
     low_bound = median - std
     row_peaks = row_peaks[np.where(np.logical_and(row_peaks >= exp_range[0],
-                                                    row_peaks <= exp_range[1]))]                                         #filters clmn_peak for expected range
+                                                    row_peaks <= exp_range[1]))]                                        #filters row_peak for expected range
     too_close = np.array(np.where(np.logical_or(np.diff(row_peaks) < low_bound,
                                       np.diff(row_peaks) > up_bound))).flatten()
     dis_too_close = np.diff(too_close).flatten()
     indx_too_close = (np.array(np.where(dis_too_close == 1)).
                       flatten() + 1).astype(int)                                                                        #+1 returns indices of indices of peaks that are too close to each other
     indx_too_close = too_close[indx_too_close]
+    #remove maxima that are too close at indx:
     frame = np.delete(row_peaks, indx_too_close)
     split = np.insert(frame, 0, (frame[0] - median))
     split = np.append(split, (frame[-1] + median))
+    #repeat process with higher std if number of maxima is not 41 (=> 40 rows of symbols as on the test sheet):
     while len(split) == 41:
       return split
 
@@ -89,6 +98,7 @@ def clmn_adaptor(clmn_peaks, exp_range = (300, 2000)):
     while len(split) == 26:
       return split
 
+#function to split test sheet into individual symbols and append symbols to a list:
 def sym_list_loop(img, adapt_row, adapt_clmn):                                                                          #loop for single symbols:
   row_range = np.array(range(len(adapt_row)))
   clmn_range = np.array(range(len(adapt_clmn)))
@@ -105,7 +115,8 @@ def sym_list_loop(img, adapt_row, adapt_clmn):                                  
       mean_sym_list.append(np.mean(symbols))
   return sym_list, mean_sym_list
 
-def symbol_splitter(x, val = 210, frac_sym = 0.11):                                                                     #function to find row and clmn vals of single symbols:
+#function to split symbols into nine areas (later detection boxes):
+def symbol_splitter(x, val = 210, frac_sym = 0.11):                                                                     #function to find row and clmn minima of single symbols:
   dim_sym = x.shape
   sym_mean_row = np.mean(x, axis=1)
   sym_mean_clmn = np.mean(x, axis=0)
@@ -113,22 +124,22 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
   clmn_y = np.array(range(dim_sym[-1]))
   lowess = sm.nonparametric.lowess
   sym_smth_row = lowess(sym_mean_row, range(len(row_x)),
-                        return_sorted = False, frac = frac_sym)                                                         #adjusted from 0.15 to 0.11 because some symbols had no vals!
+                        return_sorted = False, frac = frac_sym)
   sym_row_vals = np.asarray(argrelmin(sym_smth_row)).flatten()
   sym_vals = sym_smth_row[sym_row_vals]
   sym_vals_indx = np.asarray(np.where(sym_vals < val)).flatten()
   row_vals = sym_row_vals[sym_vals_indx]
-  if len(row_vals) == 1:                                                                                                #symbols with only one minima
+  if len(row_vals) == 1:                                                                                                #symbols with only one row minima
     if row_vals[0] < 30:
-      row_vals = np.append(row_vals, (row_vals[0] + 21))                                                                #symbol number 412 (row 17/ clmn 13) and 712 (row 29/ clmn 13) don't have second minima!!!!!
+      row_vals = np.append(row_vals, (row_vals[0] + 21))                                                                #for symbols missing second row minima
     elif row_vals[0] > 30:
-      row_vals = np.insert(row_vals, 0, (row_vals[0] - 21))                                                             #symbol number 690 (row 28/ clmn 16) doesn't have first minima!!!!!
-  if len(row_vals) != 2:                                                                                                #symbols having more than two minima
+      row_vals = np.insert(row_vals, 0, (row_vals[0] - 21))                                                             #for symbols missing first row minima
+  if len(row_vals) != 2:                                                                                                #symbols having more than two row minima
     row_vals = row_vals[0], row_vals[-1]
   if np.diff(row_vals) < 15:
     if row_vals[0] > 30:
       row_vals = np.insert(row_vals, 0, (row_vals[1] - 21))
-    elif row_vals[1] < 40:                                                                                              #symbols missing one minima, but having two minima
+    elif row_vals[1] < 40:                                                                                              #symbols having two row minima but not at desired distance to eachother
       row_vals = np.append(row_vals, (row_vals[0] + 21))
     row_vals = np.asarray([row_vals[0], row_vals[-1]])
   sym_smth_clmn = lowess(sym_mean_clmn, range(len(clmn_y)),
@@ -137,14 +148,14 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
   sym_vals = sym_smth_clmn[sym_clmn_vals]
   sym_vals_indx = np.asarray(np.where(sym_vals < val)).flatten()
   clmn_vals = sym_clmn_vals[sym_vals_indx]
-  if len(clmn_vals) == 1:                                                                                               #symbols with only one minima
+  if len(clmn_vals) == 1:                                                                                               #symbols with only one column minima
     if clmn_vals[0] < 30:
-      clmn_vals = np.append(clmn_vals, (clmn_vals[0] + 21))                                                             #symbol number 412 (row 17/ clmn 13) and 712 (row 29/ clmn 13) don't have second minima!!!!!
+      clmn_vals = np.append(clmn_vals, (clmn_vals[0] + 21))                                                             #symbols missing second column minima
     elif clmn_vals[0] > 30:
-      clmn_vals = np.insert(clmn_vals, 0, (clmn_vals[0] - 21))                                                          #symbol number 920 (row 37/ clmn 13) doesn't have first minima!!!!!
-  if len(clmn_vals) != 2:                                                                                               #symbols having more than two minima
+      clmn_vals = np.insert(clmn_vals, 0, (clmn_vals[0] - 21))                                                          #symbols missing first column minima
+  if len(clmn_vals) != 2:                                                                                               #symbols having more than two column minima
     clmn_vals = clmn_vals[0], clmn_vals[-1]
-  if np.diff(clmn_vals) < 15:                                                                                           #symbols missing one minima, but having two minima
+  if np.diff(clmn_vals) < 15:                                                                                           #symbols having tow column minima but not at desired distance to eachother
     if clmn_vals[0] > 30:
       clmn_vals = np.insert(clmn_vals, 0, (clmn_vals[1] - 21))
     elif clmn_vals[1] < 40:
@@ -152,6 +163,7 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
     clmn_vals = np.asarray([clmn_vals[0], clmn_vals[-1]])
   return dim_sym, row_vals, clmn_vals
 
+#function of model with inside or outside criteria:
 def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
@@ -200,6 +212,7 @@ def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
        5, 0, 4, 3, 7, 2, 1, 1, 7, 5, 0, 4, 3, 5, 3, 5, 0, 4, 3, 1, 2, 1,
        7, 1, 1, 2, 7, 1, 7, 5, 0, 4, 3, 5, 1, 2, 2, 7, 7, 7, 1, 2, 7, 2,
        4, 3, 5, 0, 4, 5, 0, 4, 3, 5]
+  #split symbols and calculate mean grayscale value of formed areas:
   mean_out_areas = []
   mean_in_areas = []
   for p in range(len(sym_list)):
@@ -238,7 +251,8 @@ def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
     mean_out_7 = np.mean(out_symbol_7)
     mean_out_8 = np.mean(out_symbol_8)
     mean_out = [mean_out_1, mean_out_2, mean_out_3, mean_out_4, mean_out_5, mean_out_6, mean_out_7, mean_out_8]
-    if sym_var[p] == 2:                                                                                               # at index 2 is symbol variations 3
+    #brute force method of removing black ink of symbol box:
+    if sym_var[p] == 2:                                                                                                 # at index 2 is symbol variations 3
         del mean_out[1]  # delete and replace with new mean_out
         out_symbol_2[-5:, -5:] = 255  # change lower right edge of out_symbol to white for FP correction
         mean_out_2 = np.mean(out_symbol_2)
@@ -274,6 +288,7 @@ def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
         out_symbol_8[-3:, -3:] = 255
         mean_out_8 = np.mean(out_symbol_8)
         mean_out.insert(7, mean_out_8)
+    #delete area outside the symbol box containing symbol variation tail:
     del mean_out[sym_var[p]]
     mean_out = np.floor(mean_out)
     mean_out_areas.append(mean_out)
@@ -283,14 +298,14 @@ def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
     mean_in_areas.append(mean_in_sym)
   #check within symbol border for mark:
   mean_in_areas = np.array(mean_in_areas)
-  mark_in = (mean_in_areas < thresh).astype(int)                                                                           #np.logical_and to combine two conditions without causing ValueError
+  mark_in = (mean_in_areas < thresh).astype(int)
   indx_mark_in = np.array(np.where(mark_in == 1)).flatten()
   #use areas outside the symbol to check for symbols without a definite mark:
   mean_out_areas = np.array(mean_out_areas)
   indx_mark_out = np.array(np.where(mark_in == 0)).flatten()                                                            #index for symbols that weren't recognized as marked
   mark_out = np.zeros(1000, int)
   for k in indx_mark_out:
-    if np.count_nonzero(mean_out_areas[k] < thresh) > 1:                                                                   #whenever two or more areas outside the symbol show a mark it is considered marked
+    if np.count_nonzero(mean_out_areas[k] < thresh) > 1:                                                                #whenever two or more areas outside the symbol show a mark it is considered marked
       mark_out[k] = 1
     else:
       mark_out[k] = 0
@@ -442,9 +457,9 @@ def model_in_AND_out(sym_list, mean_sym_list, thresh = 250, corr = False):
     mean_in_areas.append(mean_in_sym)
   #check within symbol border for mark:
   mean_in_areas = np.array(mean_in_areas)
-  mark_in = (mean_in_areas <= thresh).astype(int)                                                                               #np.logical_and to combine two conditions without causing ValueError
+  mark_in = (mean_in_areas <= thresh).astype(int)
   indx_mark_in = np.array(np.where(mark_in == 1)).flatten()
-  #use areas outside the symbol to check for symbols without a definite mark:
+  #check areas outside the symbol box for mark:
   mean_out_areas = np.array(mean_out_areas)
   mark_out = np.zeros(1000, int)
   for k in range(len(mean_in_areas)):
@@ -455,7 +470,9 @@ def model_in_AND_out(sym_list, mean_sym_list, thresh = 250, corr = False):
   indx_mark_out = np.array(np.where(mark_out == 1)).flatten()                                                           #index for symbols that weren't recognized as marked inside the symbol
   #join mark arrays:
   mark = np.add(mark_out, mark_in)
+  #when mark was recognized only once ==> not recognized as marked:
   mark[mark == 1] = 0
+  #when mark was recognized twice ==> recognize as marked:
   mark[mark == 2] = 1
   mark[0:25] = 0
   indx_mark_sym = np.array(np.where(mark == 1)).flatten()
@@ -691,7 +708,7 @@ def model_strict_thresh(sym_list, mean_sym_list, thresh = 250, strict_thresh = 2
     in_symbol = symbol[in_row[0]:in_row[1], in_clmn[0]:in_clmn[1]]
     mean_in_sym = np.floor(np.mean(in_symbol))
     mean_in_areas.append(mean_in_sym)
-  #check within symbol border for target mark with lenient threshold:
+  #check within symbol border of target symbols for mark with lenient threshold:
   mean_in_areas = np.array(mean_in_areas)
   mark_in_target = np.zeros(1000, int)
   for k in indx_target:
@@ -743,6 +760,7 @@ def model_strict_thresh(sym_list, mean_sym_list, thresh = 250, strict_thresh = 2
     mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
+#function to adapt perfect score template according to last symbol processed by patient:
 def adapt_template(stop):
   #template:
   x = [1,1,1,1,1,1,
@@ -837,6 +855,7 @@ def adapt_template(stop):
   template = template.reshape(40, 25)
   return template
 
+#function to generate perfect score template:
 def template_gen():
     # template:
     x = [1, 1, 1, 1, 1, 1,
@@ -927,6 +946,7 @@ def template_gen():
     template = csr_matrix((data, (row, col)), shape=(40, 25)).toarray()
     return template
 
+#function to compare mark array generated by model with perfect score template:
 def evaluation(mark, template):
   #we find the predicted and true labels that are assigned to some specific class
   #then we use the "AND" operator to combine the results of the two label vectors
@@ -949,6 +969,7 @@ def evaluation(mark, template):
   # print(ACC)
   return TP, TN, FP, FN, ACC
 
+#function to visualize missed target symbols and marked non-target symbols:
 def visual(img, mark, template, adapt_row, adapt_clmn):
   FN_loc = np.logical_and(mark == 0, template == 1)
   FN_indx = np.transpose(np.nonzero(FN_loc == True))
@@ -967,6 +988,7 @@ def visual(img, mark, template, adapt_row, adapt_clmn):
   vis = plt.show()
   return vis, FN_indx, FP_indx
 
+#optional function to visualize individual error symbols:
 def FNFP_visual(img, FN_indx, FP_indx, adapt_row, adapt_clmn, criteria):
   for w in range(len(FN_indx)):
     FN_img = img[adapt_row[FN_indx[w, 0]]:adapt_row[(FN_indx[w, 0] + 1)], adapt_clmn[FN_indx[w, 1]]:adapt_clmn[(FN_indx[w, 1] + 1)]]
@@ -985,6 +1007,8 @@ def FNFP_visual(img, FN_indx, FP_indx, adapt_row, adapt_clmn, criteria):
     else:
       print('outside')
 
+#combination of aforementioned functions to score and visualize T2B test sheet:
+#path of ground truth needed to signal last processed symbol by patient:
 def T2B_evaluator(excel_path, jpeg_path, model):
   # patient performance from ground truth:
   stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()

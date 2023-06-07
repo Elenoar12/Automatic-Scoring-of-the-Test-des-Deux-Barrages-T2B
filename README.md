@@ -7,4 +7,8 @@ For this purpose, 23 filled-out test sheets and their evaluations by clinical ex
 
 In this repository you can find:
 - the data used in this thesis (see 'Data')
-- the script used for performance analysis (see Performance 
+- the script used for performance analysis (see 'Performance Analysis')
+- the script used for statistical tests (see 'Statistical Tests)
+- a script to convert .pdf files to images
+- a script that scores the T2B automatically and visualizes errors
+- 

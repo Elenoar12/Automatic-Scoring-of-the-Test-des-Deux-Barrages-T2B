@@ -9,22 +9,19 @@ from scipy.sparse import csr_matrix
 import pandas as pd
 import os
 from scipy import ndimage
-
+from sklearn.metrics import roc_curve, auc, precision_recall_curve, average_precision_score
 
 root = tk.Tk()
 root.withdraw()                                                                                                         #use to hide tkinter window
 
 def search_for_jpeg_path():
-    jpeg_path = filedialog.askopenfilename(parent = root, title = 'Please select a file', filetypes = (("JPEG files","*.jpeg"),("all files","*.*")))
+    jpeg_path = filedialog.askopenfilename(parent = root, title = 'Please select test sheet image', filetypes = (("JPEG files","*.jpeg"),("all files","*.*")))
     return jpeg_path
 
 def search_for_xlsm_paths():
-    excel_paths = filedialog.askopenfilenames(parent = root, title = 'Select ground truth files', filetypes = (("Excel files","*.xlsm"),("all files","*.*")))
+    excel_paths = filedialog.askopenfilename(parent = root, title = 'Please select ground truth file for stop indicator', filetypes = (("Excel files","*.xlsm"),("all files","*.*")))
     return excel_paths
 
-def search_for_xlsx_paths():
-    excel_paths = filedialog.askopenfilenames(parent = root, title = 'Select clinicians evaluation files (.xlsx)', filetypes = (("Excel files","*.xlsx"),("all files","*.*")))
-    return excel_paths
 
 def T2B_import(jpeg_path):
   img = cv.imread(jpeg_path, cv.IMREAD_GRAYSCALE)                                                                       #if test sheets to be rotated --> img = cv.rotate(img, cv.ROTATE_90_CLOCKWISE) or COUNTERCLOCKWISE
@@ -931,348 +928,6 @@ def template_gen():
     template = csr_matrix((data, (row, col)), shape=(40, 25)).toarray()
     return template
 
-def perf_anal_pat(excel_path):
-  #patient performance from ground truth:
-  stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
-          stop = (stop[10][1], stop[10][2])
-      elif np.isnan(stop[12][1]):
-          stop = (stop[11][1], stop[11][2])
-  else:
-      stop = (stop[12][1], stop[12][2])
-  stop_indx = (stop[0]-1)*25 + (stop[1]-1)
-  pat = pd.read_excel(excel_path, sheet_name='template', header= None)
-  pat = pat.to_numpy()
-  train_row = np.zeros(25, dtype=int)
-  pat = np.vstack((train_row, pat))
-  pat_template = template_gen()
-  pat_template[np.where(pat == 'a')] = 0
-  pat_template[np.where(pat == 'f')] = 1
-  pat = pat_template.flatten()[:(stop_indx + 1)]
-  template = template_gen().flatten()[:(stop_indx + 1)]
-  #quantitative analysis:
-  TP = np.sum(np.logical_and(pat == 1, template == 1))
-  TN = np.sum(np.logical_and(pat == 0, template == 0))
-  FP = np.sum(np.logical_and(pat == 1, template == 0))
-  FN = np.sum(np.logical_and(pat == 0, template == 1))
-  b_ACC = 0.5*((TP/(TP+FN))+(TN/(TN+FP)))
-  F1 = 2*((TP/(TP+FP)) * (TP/(TP+FN))) / ((TP/(TP+FP)) + (TP/(TP+FN)))
-  SEN = TP/(TP+FN)
-  SPE = TN/(TN+FP)
-  FN_loc = np.logical_and(pat == 0, template == 1)
-  FN_indx = np.transpose(np.nonzero(FN_loc == True))
-  FP_loc = np.logical_and(pat == 1, template == 0)
-  FP_indx = np.transpose(np.nonzero(FP_loc == True))
-  #create dataframe:
-  def df_creator(excel_path):
-    data = {'TP': [TP],
-            'TN': [TN],
-            'FP': [FP],
-            'FN': [FN],
-            'b-ACC': [b_ACC],
-            'F1': [F1],
-            'SEN': [SEN],
-            'SPE': [SPE]}
-    df = pd.DataFrame(data)
-    excel_name = os.path.basename(excel_path)
-    excel_name = os.path.splitext(excel_name)[0]
-    df.index = [excel_name]
-    return df
-  df = df_creator(excel_path)
-  return df
-
-def perf_anal_script(excel_path, model):
-  #performance analysis:
-  jpeg_path = os.path.splitext(excel_path)[0] + ".jpeg"
-  #last symbol from excel sheet:
-  stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
-          stop = (stop[10][1], stop[10][2])
-      elif np.isnan(stop[12][1]):
-          stop = (stop[11][1], stop[11][2])
-  else:
-      stop = (stop[12][1], stop[12][2])
-  T2B = T2B_import(jpeg_path)
-  img = T2B[0]
-  dim = T2B[1]
-  row_peaks = T2B_splitter(img, dim)[0]
-  clmn_peaks = T2B_splitter(img, dim)[1]
-  adapt_row = row_adaptor(row_peaks)
-  try:
-      any(adapt_row == None)
-  except:
-      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
-      dim = img.shape
-      row_peaks = T2B_splitter(img, dim)[0]
-      clmn_peaks = T2B_splitter(img, dim)[1]
-      adapt_row = row_adaptor(row_peaks)
-      adapt_clmn = clmn_adaptor(clmn_peaks)
-  adapt_clmn = clmn_adaptor(clmn_peaks)
-  try:
-      any(adapt_clmn == None)
-  except:
-      img = ndimage.rotate(img, 1, reshape=False)                                                                       # minimal rotation for skewed test sheet
-      dim = img.shape
-      row_peaks = T2B_splitter(img, dim)[0]
-      clmn_peaks = T2B_splitter(img, dim)[1]
-      adapt_row = row_adaptor(row_peaks)
-      adapt_clmn = clmn_adaptor(clmn_peaks)
-  sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[0]
-  mean_sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[1]
-  mark = model(sym_list, mean_sym_list)[0]
-  mean_in_areas = model(sym_list, mean_sym_list)[1]
-  #ground truth from excel sheet:
-  gt = pd.read_excel(excel_path, sheet_name='template', header= None)
-  gt = gt.to_numpy()
-  train_row = np.zeros(25, dtype=int)
-  gt = np.vstack((train_row, gt))
-  template = adapt_template(stop)
-  template[np.where(gt == 'a')] = 0
-  template[np.where(gt == 'f')] = 1
-  gt = template
-  #quantitative analysis:
-  TP = np.sum(np.logical_and(mark == 1, gt == 1))
-  TN = np.sum(np.logical_and(mark == 0, gt == 0))
-  FP = np.sum(np.logical_and(mark == 1, gt == 0))
-  FN = np.sum(np.logical_and(mark == 0, gt == 1))
-  b_ACC = 0.5*((TP/(TP+FN))+(TN/(TN+FP)))
-  F1 = 2*((TP/(TP+FP)) * (TP/(TP+FN))) / ((TP/(TP+FP)) + (TP/(TP+FN)))
-  SEN = TP/(TP+FN)
-  SPE = TN/(TN+FP)
-  FN_loc = np.logical_and(mark == 0, gt == 1)
-  FN_indx = np.transpose(np.nonzero(FN_loc == True))
-  FP_loc = np.logical_and(mark == 1, gt == 0)
-  FP_indx = np.transpose(np.nonzero(FP_loc == True))
-  #create dataframe
-  def df_creator(excel_path):
-    data = {'TP': [TP],
-            'TN': [TN],
-            'FP': [FP],
-            'FN': [FN],
-            'b-ACC': [b_ACC],
-            'F1': [F1],
-            'SEN': [SEN],
-            'SPE': [SPE]}
-    df = pd.DataFrame(data)
-    excel_name = os.path.basename(excel_path)
-    excel_name = os.path.splitext(excel_name)[0]
-    df.index = [excel_name]
-    return df
-  df = df_creator(excel_path)
-  return df
-
-def perf_anal_clin(excel_path):
-  # clinical evaluation from excel sheet:
-  stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
-          stop = (stop[10][1], stop[10][2])
-      elif np.isnan(stop[12][1]):
-          stop = (stop[11][1], stop[11][2])
-  else:
-      stop = (stop[12][1], stop[12][2])
-  clin = pd.read_excel(excel_path, sheet_name='template', header= None)
-  clin = clin.to_numpy()
-  train_row = np.zeros(25, dtype=int)
-  clin = np.vstack((train_row, clin))
-  template = adapt_template(stop)
-  template[np.where(clin == 'a')] = 0
-  template[np.where(clin == 'f')] = 1
-  clin = template
-  #ground truth from excel sheet:
-  gt_path = os.path.splitext(excel_path)[0] + ".xlsm"
-  stop = pd.read_excel(gt_path, sheet_name='T2B').to_numpy()
-  if np.isnan(stop[12][1]):                                                                                             # in case s.o. is faster than 10min
-      if np.isnan(stop[11][1]):                                                                                         # in case s.o. is faster than 9min
-          stop = (stop[10][1], stop[10][2])
-      elif np.isnan(stop[12][1]):
-          stop = (stop[11][1], stop[11][2])
-  else:
-      stop = (stop[12][1], stop[12][2])
-  gt = pd.read_excel(gt_path, sheet_name='template', header= None)
-  gt = gt.to_numpy()
-  gt = np.vstack((train_row, gt))
-  gt_template = adapt_template(stop)
-  gt_template[np.where(gt == 'a')] = 0
-  gt_template[np.where(gt == 'f')] = 1
-  gt = gt_template
-  #quantitative analysis:
-  TP = np.sum(np.logical_and(clin == 1, gt == 1))
-  TN = np.sum(np.logical_and(clin == 0, gt == 0))
-  FP = np.sum(np.logical_and(clin == 1, gt == 0))
-  FN = np.sum(np.logical_and(clin == 0, gt == 1))
-  b_ACC = 0.5*((TP/(TP+FN))+(TN/(TN+FP)))
-  F1 = 2*((TP/(TP+FP)) * (TP/(TP+FN))) / ((TP/(TP+FP)) + (TP/(TP+FN)))
-  SEN = TP/(TP+FN)
-  SPE = TN/(TN+FP)
-  FN_loc = np.logical_and(clin == 0, gt == 1)
-  FN_indx = np.transpose(np.nonzero(FN_loc == True))
-  FP_loc = np.logical_and(clin == 1, gt == 0)
-  FP_indx = np.transpose(np.nonzero(FP_loc == True))
-  #create dataframe:
-  def df_creator(excel_path):
-    data = {'TP': [TP],
-            'TN': [TN],
-            'FP': [FP],
-            'FN': [FN],
-            'b-ACC': [b_ACC],
-            'F1': [F1],
-            'SEN': [SEN],
-            'SPE': [SPE]}
-    df = pd.DataFrame(data)
-    excel_name = os.path.basename(excel_path)
-    excel_name = os.path.splitext(excel_name)[0]
-    df.index = [excel_name]
-    return df
-  df = df_creator(excel_path)
-  return df
-
-excel_paths = search_for_xlsm_paths()                                                                                   #for script performance
-#T2B_evaluator(excel_paths, model_strict_thresh)
-
-## patient performance:
-
-pat_performance = []
-for indx in range(len(excel_paths)):
-    excel_path = excel_paths[indx]
-    pa = perf_anal_pat(excel_path)
-    pat_performance.append(pa)
-
-pat_performance = pd.concat(pat_performance)
-avg_perf = pd.DataFrame(pat_performance[['b-ACC', 'F1', 'SEN', 'SPE']].mean(axis = 0)).T
-avg_perf.index = ['average performance']
-pat_perf = pd.concat([pat_performance, avg_perf], axis = 0).fillna(0)
-pat_perf = pat_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-pat_perf.iloc[-1,[0, 1, 2, 3]] = ''
-macro_perf = pd.DataFrame({
-   'TP': [pat_performance.sum()[0].astype(int)],
-   'TN': [pat_performance.sum()[1].astype(int)],
-   'FP': [pat_performance.sum()[2].astype(int)],
-   'FN': [pat_performance.sum()[3].astype(int)],
-   'b-ACC': [0.5*((pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[3].astype(int)))+(pat_performance.sum()[1].astype(int)/(pat_performance.sum()[1].astype(int)+pat_performance.sum()[2].astype(int))))],
-   'F1': [2*((pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[2].astype(int)))*(pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[3].astype(int))))/((pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[2].astype(int)))+(pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[3].astype(int))))],
-   'SEN': [pat_performance.sum()[0].astype(int)/(pat_performance.sum()[0].astype(int)+pat_performance.sum()[3].astype(int))],
-   'SPE': [pat_performance.sum()[1].astype(int)/(pat_performance.sum()[1].astype(int)+pat_performance.sum()[2].astype(int))]})
-macro_perf.index = ['macro performance']
-pat_perf = pd.concat([pat_perf, macro_perf], axis=0)
-pat_perf.to_excel('Patient performance.xlsx')
-
-### script performance:
-## Model with inside OR outside criteria:
-
-script_performance = []
-for indx in range(len(excel_paths)):
-  excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, model_in_OR_out)
-  script_performance.append(pa)
-
-script_performance = pd.concat(script_performance)
-avg_perf = pd.DataFrame(script_performance[['b-ACC', 'F1', 'SEN', 'SPE']].mean(axis = 0)).T
-avg_perf.index = ['average performance']
-script_perf = pd.concat([script_performance, avg_perf], axis = 0).fillna(0)
-script_perf = script_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-script_perf.iloc[-1,[0, 1, 2, 3]] = ''
-macro_perf = pd.DataFrame({
-    'TP': [script_performance.sum()[0].astype(int)],
-    'TN': [script_performance.sum()[1].astype(int)],
-    'FP': [script_performance.sum()[2].astype(int)],
-    'FN': [script_performance.sum()[3].astype(int)],
-    'b-ACC': [0.5*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int)))+(script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))))],
-    'F1': [2*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))*(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))/((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))+(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))],
-    'SEN': [script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))],
-    'SPE': [script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))]})
-macro_perf.index = ['macro performance']
-Model_in_or_out_perf = pd.concat([script_perf, macro_perf], axis=0)
-Model_in_or_out_perf.to_excel('Performance analysis Model in_or_out criteria.xlsx')
-
-## Model with inside AND outside criteria:
-
-script_performance = []
-for indx in range(len(excel_paths)):
-  excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, model_in_AND_out)
-  script_performance.append(pa)
-
-script_performance = pd.concat(script_performance)
-avg_perf = pd.DataFrame(script_performance[['b-ACC', 'F1', 'SEN', 'SPE']].mean(axis = 0)).T
-avg_perf.index = ['average performance']
-script_perf = pd.concat([script_performance, avg_perf], axis = 0).fillna(0)
-script_perf = script_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-script_perf.iloc[-1,[0, 1, 2, 3]] = ''
-macro_perf = pd.DataFrame({
-    'TP': [script_performance.sum()[0].astype(int)],
-    'TN': [script_performance.sum()[1].astype(int)],
-    'FP': [script_performance.sum()[2].astype(int)],
-    'FN': [script_performance.sum()[3].astype(int)],
-    'b-ACC': [0.5*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int)))+(script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))))],
-    'F1': [2*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))*(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))/((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))+(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))],
-    'SEN': [script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))],
-    'SPE': [script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))]})
-macro_perf.index = ['macro performance']
-Model_in_and_out_perf = pd.concat([script_perf, macro_perf], axis=0)
-Model_in_and_out_perf.to_excel('Performance analysis Model in_and_out criteria.xlsx')
-
-## Model with strict threshold for non-target symbols:
-
-script_performance = []
-for indx in range(len(excel_paths)):
-  excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, model_strict_thresh)
-  script_performance.append(pa)
-
-script_performance = pd.concat(script_performance)
-avg_perf = pd.DataFrame(script_performance[['b-ACC', 'F1', 'SEN', 'SPE']].mean(axis = 0)).T
-avg_perf.index = ['average performance']
-script_perf = pd.concat([script_performance, avg_perf], axis = 0).fillna(0)
-script_perf = script_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-script_perf.iloc[-1,[0, 1, 2, 3]] = ''
-macro_perf = pd.DataFrame({
-    'TP': [script_performance.sum()[0].astype(int)],
-    'TN': [script_performance.sum()[1].astype(int)],
-    'FP': [script_performance.sum()[2].astype(int)],
-    'FN': [script_performance.sum()[3].astype(int)],
-    'b-ACC': [0.5*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int)))+(script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))))],
-    'F1': [2*((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))*(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))/((script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[2].astype(int)))+(script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))))],
-    'SEN': [script_performance.sum()[0].astype(int)/(script_performance.sum()[0].astype(int)+script_performance.sum()[3].astype(int))],
-    'SPE': [script_performance.sum()[1].astype(int)/(script_performance.sum()[1].astype(int)+script_performance.sum()[2].astype(int))]})
-macro_perf.index = ['macro performance']
-Model_strict_threshold_perf = pd.concat([script_perf, macro_perf], axis=0)
-Model_strict_threshold_perf.to_excel('Performance analysis Model with strict threshold.xlsx')
-
-## clinical performance:
-
-clin_paths = search_for_xlsx_paths()                                                                                    #for clinical performance
-
-clin_performance = []
-for indx in range(len(clin_paths)):
-    clin_path = clin_paths[indx]
-    pa = perf_anal_clin(clin_path)
-    clin_performance.append(pa)
-
-clin_performance = pd.concat(clin_performance)
-avg_perf = pd.DataFrame(clin_performance[['b-ACC', 'F1', 'SEN', 'SPE']].mean(axis = 0)).T
-avg_perf.index = ['average performance']
-clin_perf = pd.concat([clin_performance, avg_perf], axis = 0).fillna(0)
-clin_perf = clin_perf.astype({'TP': int, 'TN': int, 'FP': int, 'FN': int})
-clin_perf.iloc[-1,[0, 1, 2, 3]] = ''
-macro_perf = pd.DataFrame({
-   'TP': [clin_performance.sum()[0].astype(int)],
-   'TN': [clin_performance.sum()[1].astype(int)],
-   'FP': [clin_performance.sum()[2].astype(int)],
-   'FN': [clin_performance.sum()[3].astype(int)],
-   'b-ACC': [0.5*((clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int)))+(clin_performance.sum()[1].astype(int)/(clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int))))],
-   'F1': [2*((clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[2].astype(int)))*(clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))))/((clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[2].astype(int)))+(clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))))],
-   'SEN': [clin_performance.sum()[0].astype(int)/(clin_performance.sum()[0].astype(int)+clin_performance.sum()[3].astype(int))],
-   'SPE': [clin_performance.sum()[1].astype(int)/(clin_performance.sum()[1].astype(int)+clin_performance.sum()[2].astype(int))]})
-macro_perf.index = ['macro performance']
-clin_perf = pd.concat([clin_perf, macro_perf], axis=0)
-clin_perf.to_excel('clinical performance.xlsx')
-
-### RunTime loop:
-import time
-
 def evaluation(mark, template):
   #we find the predicted and true labels that are assigned to some specific class
   #then we use the "AND" operator to combine the results of the two label vectors
@@ -1331,7 +986,7 @@ def FNFP_visual(img, FN_indx, FP_indx, adapt_row, adapt_clmn, criteria):
     else:
       print('outside')
 
-def T2B_evaluator(excel_path, model):
+def T2B_evaluator(excel_path, jpeg_path, model):
   # patient performance from ground truth:
   stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
   if np.isnan(stop[12][1]):  # in case s.o. is faster than 10min
@@ -1342,7 +997,6 @@ def T2B_evaluator(excel_path, model):
   else:
     stop = (stop[12][1], stop[12][2])
   stop_indx = (stop[0] - 1) * 25 + (stop[1] - 1)
-  jpeg_path = os.path.splitext(excel_path)[0] + ".jpeg"
   T2B = T2B_import(jpeg_path)
   img = T2B[0]
   dim = T2B[1]
@@ -1381,13 +1035,6 @@ def T2B_evaluator(excel_path, model):
   vis = visual(img, mark, template, adapt_row, adapt_clmn)[0]
   return vis
 
-st = time.time()
-for indx in range(len(excel_paths)):
-    excel_path = excel_paths[indx]
-    T2B_evaluator(excel_path, model_strict_thresh)
-et = time.time()
-# get the execution time
-elapsed_time = et - st
-avg_time = (et - st) / 23
-print('Execution time:', elapsed_time, 'seconds')
-print('Execution time:', avg_time, 'seconds')
+excel_path = search_for_xlsm_paths()
+jpeg_path = search_for_jpeg_path()
+T2B_evaluator(excel_path, jpeg_path, model_strict_thresh)

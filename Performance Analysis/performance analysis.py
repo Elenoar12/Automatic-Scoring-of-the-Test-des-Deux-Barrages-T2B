@@ -14,10 +14,6 @@ from scipy import ndimage
 root = tk.Tk()
 root.withdraw()                                                                                                         #use to hide tkinter window
 
-def search_for_jpeg_path():
-    jpeg_path = filedialog.askopenfilename(parent = root, title = 'Please select a file', filetypes = (("JPEG files","*.jpeg"),("all files","*.*")))
-    return jpeg_path
-
 def search_for_xlsm_paths():
     excel_paths = filedialog.askopenfilenames(parent = root, title = 'Select ground truth files', filetypes = (("Excel files","*.xlsm"),("all files","*.*")))
     return excel_paths

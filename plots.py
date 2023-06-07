@@ -1110,7 +1110,7 @@ def visual(img, mark, template, adapt_row, adapt_clmn):
     plt.hlines((adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)]), adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)], colors = ("r"), linewidth = 1)
     plt.vlines((adapt_clmn[FP_indx[v, 1]], adapt_clmn[(FP_indx[v, 1] + 1)]), adapt_row[FP_indx[v, 0]], adapt_row[(FP_indx[v, 0] + 1)], colors = ("r"), linewidth = 1)
   return vis, FN_indx, FP_indx
-def error_anal_plt(excel_path, method):
+def error_anal_plt(excel_path, model):
   jpeg_path = os.path.splitext(excel_path)[0] + ".jpeg"
   T2B = T2B_import(jpeg_path)
   img = T2B[0]
@@ -1139,9 +1139,9 @@ def error_anal_plt(excel_path, method):
     adapt_clmn = clmn_adaptor(clmn_peaks)
   sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[0]
   mean_sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[1]
-  mark = method(sym_list, mean_sym_list)[0]
-  mean_in_areas = method(sym_list, mean_sym_list)[1]
-  mean_out_areas = method(sym_list, mean_sym_list)[2]
+  mark = model(sym_list, mean_sym_list)[0]
+  mean_in_areas = model(sym_list, mean_sym_list)[1]
+  mean_out_areas = model(sym_list, mean_sym_list)[2]
   stop = pd.read_excel(excel_path, sheet_name='T2B').to_numpy()
   if np.isnan(stop[12][1]):  # in case s.o. is faster than 10min
       if np.isnan(stop[11][1]):  # in case s.o. is faster than 9min

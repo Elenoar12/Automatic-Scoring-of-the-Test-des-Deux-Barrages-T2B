@@ -1374,12 +1374,12 @@ def T2B_evaluator(excel_path, model):
   mark = mark.flatten()[:(stop_indx + 1)]
   template = template_gen().flatten()[:(stop_indx + 1)]
   eval = evaluation(mark, template)
-  fill_template = template_gen().flatten()[(stop_indx + 1):]
-  mark = np.append(mark, fill_template)
-  mark = mark.reshape(40, 25)
-  template = template_gen()
-  vis = visual(img, mark, template, adapt_row, adapt_clmn)[0]
-  return vis
+  #fill_template = template_gen().flatten()[(stop_indx + 1):]
+  #mark = np.append(mark, fill_template)
+  #mark = mark.reshape(40, 25)
+  #template = template_gen()
+  #vis = visual(img, mark, template, adapt_row, adapt_clmn)[0]
+  return eval
 
 st = time.time()
 for indx in range(len(excel_paths)):

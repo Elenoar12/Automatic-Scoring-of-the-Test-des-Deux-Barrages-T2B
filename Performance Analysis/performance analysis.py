@@ -155,7 +155,7 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
     clmn_vals = np.asarray([clmn_vals[0], clmn_vals[-1]])
   return dim_sym, row_vals, clmn_vals
 
-def model_in_OR_out(sym_list, mean_sym_list, corr = False):
+def model_in_OR_out(sym_list, mean_sym_list, thresh = 250, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
        5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -231,7 +231,7 @@ def model_in_OR_out(sym_list, mean_sym_list, corr = False):
     out_symbol_8 = symbol[out_row[0]:out_row[1], 0:out_clmn[0]]
     out_symbol_8 = out_symbol_8[:,5:]
     out_symbol = [out_symbol_1, out_symbol_2, out_symbol_3, out_symbol_4, out_symbol_5, out_symbol_6, out_symbol_7, out_symbol_8]
-    #calculate means for each area outside symbol box:
+    #calculate means for each area and compare for lowest mean:
     mean_out_1 = np.mean(out_symbol_1)
     mean_out_2 = np.mean(out_symbol_2)
     mean_out_3 = np.mean(out_symbol_3)
@@ -241,8 +241,7 @@ def model_in_OR_out(sym_list, mean_sym_list, corr = False):
     mean_out_7 = np.mean(out_symbol_7)
     mean_out_8 = np.mean(out_symbol_8)
     mean_out = [mean_out_1, mean_out_2, mean_out_3, mean_out_4, mean_out_5, mean_out_6, mean_out_7, mean_out_8]
-    #delete area outside symbol box that contains symbol variation tail:
-    if sym_var[p] == 2:                                                                                                 # at index 2 is symbol variations 3
+    if sym_var[p] == 2:                                                                                               # at index 2 is symbol variations 3
         del mean_out[1]  # delete and replace with new mean_out
         out_symbol_2[-5:, -5:] = 255  # change lower right edge of out_symbol to white for FP correction
         mean_out_2 = np.mean(out_symbol_2)
@@ -287,14 +286,14 @@ def model_in_OR_out(sym_list, mean_sym_list, corr = False):
     mean_in_areas.append(mean_in_sym)
   #check within symbol border for mark:
   mean_in_areas = np.array(mean_in_areas)
-  mark_in = (mean_in_areas < 250).astype(int)
+  mark_in = (mean_in_areas < thresh).astype(int)                                                                           #np.logical_and to combine two conditions without causing ValueError
   indx_mark_in = np.array(np.where(mark_in == 1)).flatten()
   #use areas outside the symbol to check for symbols without a definite mark:
   mean_out_areas = np.array(mean_out_areas)
   indx_mark_out = np.array(np.where(mark_in == 0)).flatten()                                                            #index for symbols that weren't recognized as marked
   mark_out = np.zeros(1000, int)
   for k in indx_mark_out:
-    if np.count_nonzero(mean_out_areas[k] < 250) > 1:                                                                   #whenever two or more areas outside the symbol show a mark it is considered marked
+    if np.count_nonzero(mean_out_areas[k] < thresh) > 1:                                                                   #whenever two or more areas outside the symbol show a mark it is considered marked
       mark_out[k] = 1
     else:
       mark_out[k] = 0
@@ -314,7 +313,7 @@ def model_in_OR_out(sym_list, mean_sym_list, corr = False):
       mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def model_in_AND_out(sym_list, mean_sym_list, corr = False):
+def model_in_AND_out(sym_list, mean_sym_list, thresh = 250, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -446,13 +445,13 @@ def model_in_AND_out(sym_list, mean_sym_list, corr = False):
     mean_in_areas.append(mean_in_sym)
   #check within symbol border for mark:
   mean_in_areas = np.array(mean_in_areas)
-  mark_in = (mean_in_areas <= 250).astype(int)
+  mark_in = (mean_in_areas <= thresh).astype(int)                                                                               #np.logical_and to combine two conditions without causing ValueError
   indx_mark_in = np.array(np.where(mark_in == 1)).flatten()
   #use areas outside the symbol to check for symbols without a definite mark:
   mean_out_areas = np.array(mean_out_areas)
   mark_out = np.zeros(1000, int)
   for k in range(len(mean_in_areas)):
-    if np.count_nonzero(mean_out_areas[k] <= 250) > 0:
+    if np.count_nonzero(mean_out_areas[k] <= thresh) > 0:
         mark_out[k] = 1
     else:
         mark_out[k] = 0
@@ -465,7 +464,7 @@ def model_in_AND_out(sym_list, mean_sym_list, corr = False):
   indx_mark_sym = np.array(np.where(mark == 1)).flatten()
   if corr == True:
     mark_sym = np.array(mean_sym_list)[indx_mark_sym]
-    mean_mark_sym = np.mean(mark_sym)
+    mean_mark_sym = np.mean(mark_sym)                                                                                   #uncomment for mean/std correction control
     std_mark_sym = np.std(mark_sym)
     indx_outl = np.where(mark_sym < (mean_mark_sym - 3*std_mark_sym))
     indx_corr = indx_mark_sym[indx_outl]
@@ -475,7 +474,7 @@ def model_in_AND_out(sym_list, mean_sym_list, corr = False):
     mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def model_strict_thresh(sym_list, mean_sym_list, corr = False):
+def model_strict_thresh(sym_list, mean_sym_list, thresh = 250, strict_thresh = 230, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -699,7 +698,7 @@ def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   mean_in_areas = np.array(mean_in_areas)
   mark_in_target = np.zeros(1000, int)
   for k in indx_target:
-    if mean_in_areas[k] <= 250:
+    if mean_in_areas[k] <= thresh:
         mark_in_target[k] = 1
     else:
         mark_in_target[k] = 0
@@ -709,7 +708,7 @@ def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   indx_mark_out_target = np.intersect1d(indx_target, np.array(np.where(mark_in_target == 0)).flatten())        #index for symbols that weren't recognized as marked among target symbols
   mark_out_target = np.zeros(1000, int)
   for k in indx_mark_out_target:
-    if np.count_nonzero(mean_out_areas[k] <= 250) > 0:
+    if np.count_nonzero(mean_out_areas[k] <= thresh) > 0:
         mark_out_target[k] = 1
     else:
         mark_out_target[k] = 0
@@ -717,7 +716,7 @@ def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   #check within symbol border for non-target mark with strict threshold:
   mark_in_non_target = np.zeros(1000, int)
   for k in indx_non_target:
-    if mean_in_areas[k] < 230:
+    if mean_in_areas[k] < strict_thresh:
         mark_in_non_target[k] = 1
     else:
         mark_in_non_target[k] = 0
@@ -725,7 +724,7 @@ def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   indx_mark_out_non_target = np.intersect1d(indx_non_target, np.array(np.where(mark_in_non_target == 0)).flatten())    #index for symbols that weren't recognized as marked
   mark_out_non_target = np.zeros(1000, int)
   for k in indx_mark_out_non_target:
-    if np.count_nonzero(mean_out_areas[k] < 230) > 1:
+    if np.count_nonzero(mean_out_areas[k] < strict_thresh) > 1:
         mark_out_non_target[k] = 1
     else:
         mark_out_non_target[k] = 0

@@ -8,7 +8,14 @@ For this purpose, 23 filled-out test sheets and their evaluations by clinical ex
 In this repository you can find:
 - the data used in this thesis (see 'Data')
 - the script used for performance analysis (see 'Performance Analysis')
-- the script used for statistical tests (see 'Statistical Tests)
+- the script used for statistical tests (see 'Statistical Tests')
+- the script used to plot figures (see 'Plots')
 - a script to convert .pdf files to images
 - a script that scores the T2B automatically and visualizes errors
-- 
+- the Master thesis
+
+# How to navigate:
+
+Folders were specifically created: Scripts within a folder use the files within the folder. Please use the files that were included in the same folder to ensure that the scripts run correctly. Tkinter windows will pop up when running the code, prompting to select files. The window titles will specify which files to choose.
+
+

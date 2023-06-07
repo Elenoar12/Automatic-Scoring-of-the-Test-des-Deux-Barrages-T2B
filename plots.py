@@ -146,7 +146,7 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
       clmn_vals = np.append(clmn_vals, (clmn_vals[0] + 21))
     clmn_vals = np.asarray([clmn_vals[0], clmn_vals[-1]])
   return dim_sym, row_vals, clmn_vals
-def mean_method(sym_list, mean_sym_list, corr = False):
+def model_in_OR_out(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
        5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -304,7 +304,7 @@ def mean_method(sym_list, mean_sym_list, corr = False):
       mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def mean_method_both(sym_list, mean_sym_list, corr = False):
+def model_in_AND_out(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -465,7 +465,7 @@ def mean_method_both(sym_list, mean_sym_list, corr = False):
     mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def mean_method_strict(sym_list, mean_sym_list, corr = False):
+def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -880,7 +880,7 @@ def pre_crv_plotter(excel_paths):
             adapt_clmn = clmn_adaptor(clmn_peaks)
         sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[0]
         mean_sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[1]
-        mean_in_areas = mean_method(sym_list, mean_sym_list)[1]
+        mean_in_areas = model_in_OR_out(sym_list, mean_sym_list)[1]
         means_in_areas.append(mean_in_areas)
     gts = np.array(gts)
     means_in_areas = np.array(means_in_areas)
@@ -940,7 +940,7 @@ def pre_hist_plotter(excel_paths):
             adapt_clmn = clmn_adaptor(clmn_peaks)
         sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[0]
         mean_sym_list = sym_list_loop(img, adapt_row, adapt_clmn)[1]
-        mean_in_areas = mean_method(sym_list, mean_sym_list)[1]
+        mean_in_areas = model_in_OR_out(sym_list, mean_sym_list)[1]
         # 4. histograms:
         hist_target, bin_edges_target = np.histogram(mean_in_areas[gt_indx_target],
                                                      bins=np.arange(170, 265, 5))
@@ -1162,7 +1162,7 @@ def error_anal_plt(excel_path, method):
   FP_indx = visual(img, mark, gt, adapt_row, adapt_clmn)[2]
   return mean_in_areas, mean_out_areas, FN_indx, FP_indx, sym_list
 
-error_fig = error_anal_plt(excel_paths, mean_method_strict)
+error_fig = error_anal_plt(excel_paths, model_strict_thresh)
 mean_in_areas = error_fig[0]
 mean_out_areas = error_fig[1]
 FN_indx = error_fig[2]

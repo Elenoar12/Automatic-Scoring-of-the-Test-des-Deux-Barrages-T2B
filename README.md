@@ -5,4 +5,6 @@ For this purpose, 23 filled-out test sheets and their evaluations by clinical ex
 
 # Overview:
 
-In this repository you can 
+In this repository you can find:
+- the data used in this thesis (see 'Data')
+- the script used for performance analysis (see Performance 

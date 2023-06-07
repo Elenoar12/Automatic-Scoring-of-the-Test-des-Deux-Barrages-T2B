@@ -9,6 +9,10 @@ root = tk.Tk()
 root.withdraw()                                                                                                         #use to hide tkinter window
 
 ### Statistical tests:
+# To run the sign test and Wilcoxon signed-rank test use the files in folder 'Statistical tests'. These Excel files
+# contain the performance analysis of the clinicians and the models. The tkinter window title will specify which file to
+# select, when the tkinter window prompts you to select a file. After selecting the correct files the script will run
+# the statistical tests and print the results.
 
 ## choose performance analysis files:
 

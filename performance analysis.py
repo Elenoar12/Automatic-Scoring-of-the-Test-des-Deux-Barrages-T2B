@@ -155,7 +155,7 @@ def symbol_splitter(x, val = 210, frac_sym = 0.11):                             
     clmn_vals = np.asarray([clmn_vals[0], clmn_vals[-1]])
   return dim_sym, row_vals, clmn_vals
 
-def mean_method(sym_list, mean_sym_list, corr = False):
+def model_in_OR_out(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
        5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -313,7 +313,7 @@ def mean_method(sym_list, mean_sym_list, corr = False):
       mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def mean_method_both(sym_list, mean_sym_list, corr = False):
+def model_in_AND_out(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -474,7 +474,7 @@ def mean_method_both(sym_list, mean_sym_list, corr = False):
     mark = mark.reshape(40, 25)
   return mark, mean_in_areas
 
-def mean_method_strict(sym_list, mean_sym_list, corr = False):
+def model_strict_thresh(sym_list, mean_sym_list, corr = False):
   #symbol variations generated from empty test sheet:
   sym_var = [4, 3, 5, 0, 4, 7, 6, 1, 1, 7, 3, 5, 0, 4, 3, 7, 1, 7, 1, 2, 4, 3,
              5, 0, 4, 1, 7, 7, 1, 1, 4, 3, 5, 0, 4, 5, 0, 4, 3, 5, 6, 2, 6, 6,
@@ -1250,7 +1250,7 @@ def sep_nt_histograms(hist_non_target):
 
 #jpeg_path = search_for_jpeg_path()
 excel_paths = search_for_xlsm_paths()                                                                                   #for script performance
-#T2B_evaluator(excel_paths, mean_method_strict)
+#T2B_evaluator(excel_paths, model_strict_thresh)
 
 #sep_nt_histograms(hist_non_target)
 
@@ -1287,7 +1287,7 @@ pat_perf.to_excel('Patient performance.xlsx')
 script_performance = []
 for indx in range(len(excel_paths)):
   excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, mean_method)
+  pa = perf_anal_script(excel_path, model_in_OR_out)
   script_performance.append(pa)
 
 script_performance = pd.concat(script_performance)
@@ -1314,7 +1314,7 @@ Model_in_or_out_perf.to_excel('Performance analysis Model in_or_out criteria.xls
 script_performance = []
 for indx in range(len(excel_paths)):
   excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, mean_method_both)
+  pa = perf_anal_script(excel_path, model_in_AND_out)
   script_performance.append(pa)
 
 script_performance = pd.concat(script_performance)
@@ -1341,7 +1341,7 @@ Model_in_and_out_perf.to_excel('Performance analysis Model in_and_out criteria.x
 script_performance = []
 for indx in range(len(excel_paths)):
   excel_path = excel_paths[indx]
-  pa = perf_anal_script(excel_path, mean_method_strict)
+  pa = perf_anal_script(excel_path, model_strict_thresh)
   script_performance.append(pa)
 
 script_performance = pd.concat(script_performance)
@@ -1398,7 +1398,7 @@ import time
 st = time.time()
 for indx in range(len(excel_paths)):
     excel_path = excel_paths[indx]
-    T2B_evaluator(excel_path, mean_method_strict)
+    T2B_evaluator(excel_path, model_strict_thresh)
 et = time.time()
 # get the execution time
 elapsed_time = et - st

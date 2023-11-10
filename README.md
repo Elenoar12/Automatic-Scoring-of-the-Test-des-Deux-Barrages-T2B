@@ -11,8 +11,8 @@ In this repository you can find:
 - the script used for statistical tests (see 'Statistical Tests')
 - the script used to plot figures (see 'Plots') + link to Google Colab Notebook for remainder of figures
 - a script to convert .pdf files to images ('tkpdf2img.py')
-- a script that scores the T2B automatically and visualizes errors ('Auto_T2B.py')
 - the Master thesis
+- GUI and streamlit application using an updated version (automatic rotation and skew correction) of the script (see 'Applications')
 
 # How to navigate:
 

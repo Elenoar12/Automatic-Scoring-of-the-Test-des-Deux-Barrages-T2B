@@ -9,4 +9,4 @@ imgreg
 pdf2image
 xlwings
 streamlit
-tempfile
+temp

@@ -1,0 +1,12 @@
+numpy
+cv2
+matplotlib.pyplot
+statsmodels.api
+scipy.signal
+scipy.sparse
+scipy.ndimage
+imgreg.models.logpolar
+pdf2image
+xlwings as xw
+streamlit as st
+tempfile

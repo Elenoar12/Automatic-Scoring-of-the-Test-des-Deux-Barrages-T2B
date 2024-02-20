@@ -7,6 +7,6 @@ scipy.sparse
 scipy.ndimage
 imgreg.models.logpolar
 pdf2image
-xlwings as xw
-streamlit as st
+xlwings
+streamlit
 tempfile
